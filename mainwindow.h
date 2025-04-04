@@ -28,7 +28,6 @@ private:
     QImage originalImage;
     QImage currentImage;
 
-    // Параметры фильтров
     int brightness;
     int contrast;
     int grayscale;
