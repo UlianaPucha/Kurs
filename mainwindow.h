@@ -44,8 +44,6 @@ private:
     QImage applySaturation(const QImage &image, int value);
     QImage applyTemperature(const QImage &image, int value);
     QImage applyVignette(const QImage &image, int value);
-    QImage applySepia(const QImage &image);
-    QImage applyInvert(const QImage &image);
 };
 
 #endif 
