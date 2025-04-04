@@ -20,7 +20,7 @@ private slots:
     void on_loadButton_clicked();
     void on_applyButton_clicked();
     void on_saveButton_clicked();
-    void on_resetButton_clicked();  // Добавлен новый слот
+    void on_resetButton_clicked();  
     void on_comboBox_currentIndexChanged(int index);
 
 private:
