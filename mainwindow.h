@@ -49,4 +49,4 @@ private:
     QImage applyInvert(const QImage &image);
 };
 
-#endif // MAINWINDOW_H
+#endif 
