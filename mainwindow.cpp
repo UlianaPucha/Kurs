@@ -5,20 +5,23 @@
 #include <cmath>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , brightness(0)
-    , contrast(0)
-    , grayscale(0)
-    , saturation(100)
-    , temperature(0)
-    , vignette(0)
+    : QMainWindow(parent),
+      ui(new Ui::MainWindow),
+      brightness(0),
+      contrast(0),
+      grayscale(0),
+      saturation(100),
+      temperature(0),
+      vignette(0),
+      sharpness(0),
+      sepia(0)
 {
     ui->setupUi(this);
     toggleUI(false);
     ui->slider->setRange(-100, 100);
     ui->slider->setValue(0);
     connect(ui->comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(on_comboBox_currentIndexChanged(int)));
+    connect(ui->slider, SIGNAL(valueChanged(int)), this, SLOT(on_slider_valueChanged(int)));
 }
 
 MainWindow::~MainWindow()
@@ -35,6 +38,7 @@ void MainWindow::toggleUI(bool imageLoaded)
     ui->saveButton->setVisible(imageLoaded);
     ui->resetButton->setVisible(imageLoaded);
     ui->slider->setVisible(imageLoaded);
+    ui->valueLabel->setVisible(imageLoaded);
 }
 
 void MainWindow::on_loadButton_clicked()
@@ -52,6 +56,7 @@ void MainWindow::on_loadButton_clicked()
             vignette = 0;
             updateImageDisplay();
             toggleUI(true);
+            ui->valueLabel->setText("0");
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось загрузить изображение.");
         }
@@ -70,30 +75,47 @@ void MainWindow::on_comboBox_currentIndexChanged(int index)
     if (filter == "Яркость") {
         ui->slider->setRange(-100, 100);
         ui->slider->setValue(brightness);
+        ui->valueLabel->setText(QString::number(brightness));
     }
     else if (filter == "Контрастность") {
         ui->slider->setRange(-100, 100);
         ui->slider->setValue(contrast);
+        ui->valueLabel->setText(QString::number(contrast));
     }
     else if (filter == "Грейскейл") {
         ui->slider->setRange(0, 100);
         ui->slider->setValue(grayscale);
+        ui->valueLabel->setText(QString::number(grayscale));
     }
     else if (filter == "Насыщенность") {
         ui->slider->setRange(0, 200);
         ui->slider->setValue(saturation);
+        ui->valueLabel->setText(QString::number(saturation));
     }
     else if (filter == "Температура") {
         ui->slider->setRange(-100, 100);
         ui->slider->setValue(temperature);
+        ui->valueLabel->setText(QString::number(temperature));
     }
     else if (filter == "Виньетка") {
         ui->slider->setRange(0, 100);
         ui->slider->setValue(vignette);
+        ui->valueLabel->setText(QString::number(vignette));
     }
-    else {
-        ui->slider->setEnabled(false);
-    }
+    else if (filter == "Резкость") {
+           ui->slider->setRange(0, 100);
+           ui->slider->setValue(sharpness);
+           ui->valueLabel->setText(QString::number(sharpness));
+       }
+       else if (filter == "Сепия") {
+           ui->slider->setRange(0, 100);
+           ui->slider->setValue(sepia);
+           ui->valueLabel->setText(QString::number(sepia));
+       }
+       else {
+           ui->slider->setEnabled(false);
+           ui->valueLabel->setText("0");
+       }
 }
 
 void MainWindow::on_applyButton_clicked()
@@ -119,9 +141,28 @@ void MainWindow::on_applyButton_clicked()
     else if (filter == "Виньетка") {
         vignette = value;
     }
+    else if (filter == "Резкость") {
+          sharpness = value;
+      }
+      else if (filter == "Сепия") {
+          sepia = value;
+      }
 
-    applyAllFilters();
-    updateImageDisplay();
+      applyAllFilters();
+      updateImageDisplay();
+}
+
+void MainWindow::on_slider_valueChanged(int value)
+{
+    ui->valueLabel->setText(QString::number(value));
+}
+
+void MainWindow::on_saveButton_clicked()
+{
+    QString filePath = QFileDialog::getSaveFileName(this, "Сохранить изображение", "", "Images (*.png *.xpm *.jpg)");
+    if (!filePath.isEmpty()) {
+        currentImage.save(filePath);
+    }
 }
 
 void MainWindow::on_resetButton_clicked()
@@ -132,6 +173,8 @@ void MainWindow::on_resetButton_clicked()
     saturation = 100;
     temperature = 0;
     vignette = 0;
+    sharpness = 0;
+    sepia = 0;
 
     on_comboBox_currentIndexChanged(ui->comboBox->currentIndex());
     currentImage = originalImage;
@@ -143,52 +186,50 @@ void MainWindow::applyAllFilters()
     currentImage = originalImage;
 
     if (brightness != 0) {
-        currentImage = applyBrightness(currentImage, brightness);
+        currentImage = FilterBrightness(currentImage, brightness);
     }
     if (contrast != 0) {
-        currentImage = applyContrast(currentImage, contrast);
+        currentImage = FilterContrast(currentImage, contrast);
     }
     if (saturation != 100) {
-        currentImage = applySaturation(currentImage, saturation);
+        currentImage = FilterSaturation(currentImage, saturation);
     }
     if (temperature != 0) {
-        currentImage = applyTemperature(currentImage, temperature);
+        currentImage = FilterTemperature(currentImage, temperature);
     }
     if (grayscale != 0) {
-        currentImage = applyGrayscale(currentImage, grayscale);
+        currentImage = FilterGrayscale(currentImage, grayscale);
     }
     if (vignette != 0) {
-        currentImage = applyVignette(currentImage, vignette);
+        currentImage = FilterVignette(currentImage, vignette);
     }
+    if (sharpness != 0) {
+          currentImage = FilterSharpness(currentImage, sharpness);
+      }
+      if (sepia != 0) {
+          currentImage = FilterSepia(currentImage, sepia);
+      }
 }
 
-void MainWindow::on_saveButton_clicked()
-{
-    QString filePath = QFileDialog::getSaveFileName(this, "Сохранить изображение", "", "Images (*.png *.xpm *.jpg)");
-    if (!filePath.isEmpty()) {
-        currentImage.save(filePath);
-    }
-}
-
-QImage MainWindow::applyBrightness(const QImage &image, int value)
+QImage MainWindow::FilterBrightness(const QImage &image, int parameter)
 {
     QImage newImage = image;
     for (int y = 0; y < newImage.height(); ++y) {
         for (int x = 0; x < newImage.width(); ++x) {
             QColor color = newImage.pixelColor(x, y);
-            int r = qBound(0, color.red() + value, 255);
-            int g = qBound(0, color.green() + value, 255);
-            int b = qBound(0, color.blue() + value, 255);
+            int r = qBound(0, color.red() + parameter, 255);
+            int g = qBound(0, color.green() + parameter, 255);
+            int b = qBound(0, color.blue() + parameter, 255);
             newImage.setPixelColor(x, y, QColor(r, g, b));
         }
     }
     return newImage;
 }
 
-QImage MainWindow::applyContrast(const QImage &image, int value)
+QImage MainWindow::FilterContrast(const QImage &image, int parameter)
 {
     QImage newImage = image;
-    double factor = (259.0 * (value + 255)) / (255.0 * (259 - value));
+    double factor = (259.0 * (parameter + 255)) / (255.0 * (259 - parameter));
     for (int y = 0; y < newImage.height(); ++y) {
         for (int x = 0; x < newImage.width(); ++x) {
             QColor color = newImage.pixelColor(x, y);
@@ -201,10 +242,10 @@ QImage MainWindow::applyContrast(const QImage &image, int value)
     return newImage;
 }
 
-QImage MainWindow::applyGrayscale(const QImage &image, int value)
+QImage MainWindow::FilterGrayscale(const QImage &image, int parameter)
 {
     QImage newImage = image;
-    double factor = value / 100.0;
+    double factor = parameter / 100.0;
 
     for (int y = 0; y < newImage.height(); ++y) {
         for (int x = 0; x < newImage.width(); ++x) {
@@ -221,10 +262,10 @@ QImage MainWindow::applyGrayscale(const QImage &image, int value)
     return newImage;
 }
 
-QImage MainWindow::applySaturation(const QImage &image, int value)
+QImage MainWindow::FilterSaturation(const QImage &image, int parameter)
 {
     QImage newImage = image;
-    float saturation = value / 100.0f;
+    float saturation = parameter / 100.0f;
 
     for (int y = 0; y < newImage.height(); ++y) {
         for (int x = 0; x < newImage.width(); ++x) {
@@ -233,20 +274,16 @@ QImage MainWindow::applySaturation(const QImage &image, int value)
             int r = gray + saturation * (color.red() - gray);
             int g = gray + saturation * (color.green() - gray);
             int b = gray + saturation * (color.blue() - gray);
-            newImage.setPixelColor(x, y, QColor(
-                qBound(0, r, 255),
-                qBound(0, g, 255),
-                qBound(0, b, 255)
-            ));
+            newImage.setPixelColor(x, y, QColor(qBound(0, r, 255), qBound(0, g, 255), qBound(0, b, 255)));
         }
     }
     return newImage;
 }
 
-QImage MainWindow::applyTemperature(const QImage &image, int value)
+QImage MainWindow::FilterTemperature(const QImage &image, int parameter)
 {
     QImage newImage = image;
-    double temp = value / 100.0;
+    double temp = parameter / 100.0;
     double r, b;
 
     if (temp > 0) {
@@ -269,10 +306,10 @@ QImage MainWindow::applyTemperature(const QImage &image, int value)
     return newImage;
 }
 
-QImage MainWindow::applyVignette(const QImage &image, int value)
+QImage MainWindow::FilterVignette(const QImage &image, int parameter)
 {
     QImage newImage = image;
-    double strength = value / 100.0;
+    double strength = parameter / 100.0;
     int centerX = newImage.width() / 2;
     int centerY = newImage.height() / 2;
     double maxDist = sqrt(centerX * centerX + centerY * centerY);
@@ -292,26 +329,65 @@ QImage MainWindow::applyVignette(const QImage &image, int value)
     }
     return newImage;
 }
-
-QImage MainWindow::applySepia(const QImage &image)
+QImage MainWindow::FilterSharpness(const QImage &image, int parameter)
 {
+    if (parameter == 0) return image;
+
     QImage newImage = image;
-    for (int y = 0; y < newImage.height(); ++y) {
-        for (int x = 0; x < newImage.width(); ++x) {
-            QColor color = newImage.pixelColor(x, y);
-            int gray = qGray(color.rgb());
-            int r = qMin(255, static_cast<int>(gray * 1.2));
-            int g = qMin(255, static_cast<int>(gray * 0.9));
-            int b = qMin(255, static_cast<int>(gray * 0.6));
+    double factor = parameter / 100.0;
+    int kernel[3][3] = {{0, -1, 0}, {-1, 5, -1}, {0, -1, 0}};
+
+    for (int y = 1; y < image.height()-1; y++) {
+        for (int x = 1; x < image.width()-1; x++) {
+            int r = 0, g = 0, b = 0;
+
+            for (int ky = -1; ky <= 1; ky++) {
+                for (int kx = -1; kx <= 1; kx++) {
+                    QColor color = image.pixelColor(x + kx, y + ky);
+                    int weight = kernel[ky+1][kx+1];
+                    r += color.red() * weight;
+                    g += color.green() * weight;
+                    b += color.blue() * weight;
+                }
+            }
+
+            QColor original = image.pixelColor(x, y);
+            r = qBound(0, static_cast<int>(original.red() * (1 - factor) + r * factor), 255);
+            g = qBound(0, static_cast<int>(original.green() * (1 - factor) + g * factor), 255);
+            b = qBound(0, static_cast<int>(original.blue() * (1 - factor) + b * factor), 255);
+
             newImage.setPixelColor(x, y, QColor(r, g, b));
         }
     }
     return newImage;
 }
 
-QImage MainWindow::applyInvert(const QImage &image)
+
+QImage MainWindow::FilterSepia(const QImage &image, int parameter)
 {
+    if (parameter == 0) return image;
+
     QImage newImage = image;
-    newImage.invertPixels();
+    double intensity = parameter / 100.0;
+
+    for (int y = 0; y < image.height(); y++) {
+        for (int x = 0; x < image.width(); x++) {
+            QColor color = image.pixelColor(x, y);
+            int gray = qGray(color.rgb());
+
+            int r = qBound(0, static_cast<int>(gray + 40 * intensity), 255);
+            int g = qBound(0, static_cast<int>(gray + 20 * intensity), 255);
+            int b = qBound(0, static_cast<int>(gray - 20 * intensity), 255);
+
+            r = static_cast<int>(color.red() * (1 - intensity) + r * intensity);
+            g = static_cast<int>(color.green() * (1 - intensity) + g * intensity);
+            b = static_cast<int>(color.blue() * (1 - intensity) + b * intensity);
+
+            newImage.setPixelColor(x, y, QColor(
+                qBound(0, r, 255),
+                qBound(0, g, 255),
+                qBound(0, b, 255)));
+        }
+    }
     return newImage;
 }
